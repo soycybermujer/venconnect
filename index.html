@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VenConnect · Venprendedoras</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDyiLhT_djEoSXgvKgd9DIqxn39HgGupzI",
+    authDomain: "venconnect-28768.firebaseapp.com",
+    projectId: "venconnect-28768",
+    storageBucket: "venconnect-28768.firebasestorage.app",
+    messagingSenderId: "158376680641",
+    appId: "1:158376680641:web:c8690f7501a5dea09f0840",
+    measurementId: "G-MSZC52SP82"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Expose Firebase functions to global scope
+  window.db = db;
+  window.fsCollection = collection;
+  window.fsAddDoc = addDoc;
+
+  // Real-time listener — updates global profiles array and refreshes UI
+  const q = query(collection(db, 'profiles'), orderBy('ts', 'desc'));
+  onSnapshot(q, (snapshot) => {
+    // Update the global profiles array used everywhere in the app
+    profiles = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    updateDirCount();
+    renderDirectory();
+  }, (error) => {
+    console.error('Firebase listener error:', error);
+  });
+</script>
+<style>
+  :root {
+    --teal: #34BBA8;
+    --purple: #CE92C0;
+    --green: #8BC042;
+    --orange: #F8AA43;
+    --dark: #2C2C2C;
+    --mid: #555;
+    --light: #f7f7f5;
+    --white: #ffffff;
+    --scm-orange: #FF8F1C;
+    --scm-blue: #005870;
+    --scm-fuchsia: #ED0874;
+    --radius: 16px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Montserrat', sans-serif;
+    background: var(--light);
+    color: var(--dark);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--white);
+    border-bottom: 3px solid var(--teal);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(52,187,168,0.12);
+  }
+
+  .logo-area {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .logo-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+  }
+
+  .logo-text span:first-child {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--mid);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .logo-text strong {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--dark);
+    letter-spacing: -0.02em;
+  }
+
+  .logo-text strong em {
+    font-style: normal;
+    color: var(--teal);
+  }
+
+  .header-badge {
+    background: var(--teal);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    background: var(--white);
+    border-bottom: 1px solid #eee;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab {
+    flex: 1;
+    min-width: 80px;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mid);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+
+  .tab.active {
+    color: var(--teal);
+    border-bottom-color: var(--teal);
+  }
+
+  .tab-icon { font-size: 16px; display: block; margin-bottom: 2px; }
+
+  /* ── SCREENS ── */
+  .screen { display: none; padding: 20px 16px 80px; }
+  .screen.active { display: block; }
+
+  /* ── WELCOME ── */
+  .welcome-hero {
+    background: linear-gradient(135deg, var(--teal) 0%, #2a9d8f 100%);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    color: white;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .welcome-hero::before {
+    content: '';
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 120px; height: 120px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 50%;
+  }
+
+  .welcome-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -20px; left: 40px;
+    width: 80px; height: 80px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 50%;
+  }
+
+  .welcome-hero h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+
+  .welcome-hero p {
+    font-size: 13px;
+    opacity: 0.9;
+    line-height: 1.5;
+  }
+
+  .theory-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .theory-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--teal);
+  }
+
+  .theory-card:nth-child(2) { border-left-color: var(--purple); }
+
+  .theory-emoji { font-size: 24px; flex-shrink: 0; }
+
+  .theory-card h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 4px;
+  }
+
+  .theory-card p {
+    font-size: 11px;
+    color: var(--mid);
+    line-height: 1.5;
+  }
+
+  .cta-btn {
+    width: 100%;
+    background: var(--teal);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    padding: 16px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+
+  .cta-btn:hover { background: #2a9d8f; transform: translateY(-1px); }
+
+  /* ── FORM ── */
+  .form-header {
+    margin-bottom: 20px;
+  }
+
+  .form-header h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--dark);
+    margin-bottom: 6px;
+  }
+
+  .form-header p {
+    font-size: 12px;
+    color: var(--mid);
+  }
+
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  input, textarea, select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 2px solid #e8e8e8;
+    border-radius: 12px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    color: var(--dark);
+    background: var(--white);
+    transition: border-color 0.2s;
+    outline: none;
+    -webkit-appearance: none;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--teal);
+  }
+
+  textarea { resize: none; min-height: 80px; }
+
+  .role-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .role-chip {
+    padding: 10px 8px;
+    border: 2px solid #e8e8e8;
+    border-radius: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--white);
+    font-family: 'Montserrat', sans-serif;
+  }
+
+  .role-chip .role-icon { font-size: 20px; display: block; margin-bottom: 4px; }
+  .role-chip .role-label { font-size: 11px; font-weight: 600; color: var(--dark); }
+  .role-chip .role-desc { font-size: 9px; color: var(--mid); margin-top: 2px; }
+
+  .role-chip.selected {
+    border-color: var(--teal);
+    background: rgba(52,187,168,0.08);
+  }
+
+  .role-chip[data-role="clienta"].selected { border-color: var(--purple); background: rgba(206,146,192,0.08); }
+  .role-chip[data-role="aliada"].selected { border-color: var(--green); background: rgba(139,192,66,0.08); }
+  .role-chip[data-role="amplificadora"].selected { border-color: var(--orange); background: rgba(248,170,67,0.08); }
+  .role-chip[data-role="mentora"].selected { border-color: #9b59b6; background: rgba(155,89,182,0.08); }
+  .role-chip[data-role="curiosa"].selected { border-color: #4ECDC4; background: rgba(78,205,196,0.08); }
+  .role-chip[data-role="patrocinante"].selected { border-color: #F7B731; background: rgba(247,183,49,0.08); }
+  .role-chip[data-role="organizacion"].selected { border-color: #778CA3; background: rgba(119,140,163,0.08); }
+
+  .role-chip[data-role="curiosa"] .check-mark { background: #4ECDC4; }
+  .role-chip[data-role="patrocinante"] .check-mark { background: #F7B731; }
+  .role-chip[data-role="organizacion"] .check-mark { background: #778CA3; }
+
+  .role-chip .check-mark {
+    display: none;
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 16px; height: 16px;
+    background: var(--teal);
+    border-radius: 50%;
+    color: white;
+    font-size: 9px;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+  }
+
+  .role-chip[data-role="clienta"] .check-mark { background: var(--purple); }
+  .role-chip[data-role="aliada"] .check-mark { background: var(--green); }
+  .role-chip[data-role="amplificadora"] .check-mark { background: var(--orange); }
+  .role-chip[data-role="mentora"] .check-mark { background: #9b59b6; }
+
+  .role-chip.selected .check-mark { display: flex; }
+
+  .role-chip { position: relative; }
+
+  .roles-hint {
+    font-size: 11px;
+    color: var(--mid);
+    margin-top: 8px;
+    text-align: center;
+  }
+
+  .multi-role-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+
+  .submit-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--teal), #2a9d8f);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    padding: 16px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: all 0.2s;
+  }
+
+  .submit-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  /* ── MATCH ── */
+  .match-header {
+    margin-bottom: 20px;
+  }
+
+  .match-header h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--dark);
+    margin-bottom: 6px;
+  }
+
+  .match-header p { font-size: 12px; color: var(--mid); }
+
+  .match-input-area {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+  }
+
+  .match-input-area label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 8px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .match-textarea {
+    width: 100%;
+    border: 2px solid #e8e8e8;
+    border-radius: 12px;
+    padding: 12px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    resize: none;
+    min-height: 80px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .match-textarea:focus { border-color: var(--teal); }
+
+  .match-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--purple), #b877a8);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    padding: 14px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .match-btn:hover { opacity: 0.9; }
+  .match-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .match-results {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .match-result-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--teal);
+    animation: slideIn 0.3s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .match-result-card .match-name {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--dark);
+    margin-bottom: 2px;
+  }
+
+  .match-result-card .match-biz {
+    font-size: 12px;
+    color: var(--mid);
+    margin-bottom: 8px;
+  }
+
+  .match-reason {
+    background: rgba(52,187,168,0.08);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    color: var(--dark);
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+
+  .match-contact {
+    font-size: 12px;
+    color: var(--teal);
+    font-weight: 600;
+  }
+
+  /* ── DIRECTORY ── */
+  .dir-search {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .dir-search input {
+    flex: 1;
+    margin: 0;
+  }
+
+  .filter-chips {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    margin-bottom: 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filter-chip {
+    white-space: nowrap;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 2px solid #e8e8e8;
+    background: var(--white);
+    color: var(--mid);
+    transition: all 0.2s;
+    font-family: 'Montserrat', sans-serif;
+  }
+
+  .filter-chip.active {
+    background: var(--teal);
+    border-color: var(--teal);
+    color: white;
+  }
+
+  .profile-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .profile-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    animation: slideIn 0.3s ease;
+  }
+
+  .profile-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+    font-family: 'DM Serif Display', serif;
+  }
+
+  .profile-info { flex: 1; min-width: 0; }
+
+  .profile-name {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--dark);
+    margin-bottom: 2px;
+  }
+
+  .profile-biz {
+    font-size: 12px;
+    color: var(--mid);
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .profile-offers, .profile-seeks {
+    font-size: 11px;
+    color: var(--mid);
+    line-height: 1.4;
+    margin-bottom: 3px;
+  }
+
+  .profile-offers strong, .profile-seeks strong { color: var(--dark); }
+
+  .profile-contact {
+    font-size: 11px;
+    color: var(--teal);
+    font-weight: 600;
+    margin-top: 4px;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--mid);
+  }
+
+  .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 13px; line-height: 1.5; }
+
+  /* ── SUCCESS ── */
+  .success-banner {
+    background: linear-gradient(135deg, var(--green), #6fa832);
+    color: white;
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .success-banner .success-icon { font-size: 36px; margin-bottom: 8px; }
+  .success-banner h3 { font-family: 'DM Serif Display', serif; font-size: 20px; margin-bottom: 6px; }
+  .success-banner p { font-size: 12px; opacity: 0.9; }
+
+  /* ── LOADING ── */
+  .loading-dots {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .loading-dots span {
+    width: 6px;
+    height: 6px;
+    background: white;
+    border-radius: 50%;
+    animation: bounce 0.8s infinite;
+  }
+
+  .loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-6px); }
+  }
+
+  /* ── FOOTER ── */
+  .app-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--white);
+    border-top: 1px solid #ddd;
+    padding: 8px 16px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #333333;
+    z-index: 50;
+  }
+
+  .app-footer a { color: var(--scm-orange); font-weight: 700; text-decoration: none; }
+
+  /* ── TOOLTIP ── */
+  .info-note {
+    background: rgba(52,187,168,0.08);
+    border-left: 3px solid var(--teal);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 11px;
+    color: var(--mid);
+    margin-top: 12px;
+    line-height: 1.5;
+  }
+
+  .export-btn {
+    width: 100%;
+    background: var(--white);
+    border: 2px solid var(--teal);
+    color: var(--teal);
+    border-radius: var(--radius);
+    padding: 12px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 14px;
+    transition: all 0.2s;
+  }
+
+  .export-btn:hover { background: rgba(52,187,168,0.06); }
+
+  .count-badge {
+    background: var(--orange);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    margin-left: 4px;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo-area">
+    <div class="logo-text">
+      <span>Venprendedoras</span>
+      <strong>Ven<em>Connect</em></strong>
+    </div>
+  </div>
+  <div class="header-badge">🚆 EN VIVO</div>
+</header>
+
+<!-- TABS -->
+<nav class="tabs">
+  <button class="tab active" onclick="showScreen('welcome')">
+    <span class="tab-icon">🏠</span>Inicio
+  </button>
+  <button class="tab" onclick="showScreen('register')">
+    <span class="tab-icon">✍️</span>Mi Perfil
+  </button>
+  <button class="tab" onclick="showScreen('match')">
+    <span class="tab-icon">✨</span>Match IA
+  </button>
+  <button class="tab" onclick="showScreen('directory')">
+    <span class="tab-icon">👥</span>Red<span class="count-badge" id="dir-count">0</span>
+  </button>
+</nav>
+
+<!-- ── SCREEN: WELCOME ── -->
+<section class="screen active" id="screen-welcome">
+  <div class="welcome-hero">
+    <h1>Construye tu red.<br>Transforma tu negocio.</h1>
+    <p>Networking intencional para fundadoras latinas · Miami → West Palm Beach · Vía Brightline</p>
+  </div>
+
+  <div class="theory-cards">
+    <div class="theory-card">
+      <span class="theory-emoji">🔗</span>
+      <div>
+        <h3>La fuerza de los vínculos débiles</h3>
+        <p>Granovetter (1973): tus mejores oportunidades vienen de personas fuera de tu círculo habitual. Este tren es ese puente.</p>
+      </div>
+    </div>
+    <div class="theory-card">
+      <span class="theory-emoji">🌐</span>
+      <div>
+        <h3>Mapa de ecosistema de negocio</h3>
+        <p>Moore (1993): cada negocio prospera cuando identifica quién lo rodea y qué rol complementario ocupa cada actor.</p>
+      </div>
+    </div>
+  </div>
+
+  <button class="cta-btn" onclick="showScreen('register')">
+    Crear mi perfil ahora →
+  </button>
+
+  <div class="info-note">
+    💡 <strong>¿Cómo funciona?</strong> Llenas tu perfil (2 min) → la IA analiza toda la red → te dice exactamente con quién hablar y por qué.
+  </div>
+</section>
+
+<!-- ── SCREEN: REGISTER ── -->
+<section class="screen" id="screen-register">
+  <div class="form-header">
+    <h2>Tu tarjeta de red</h2>
+    <p>Más específica tu descripción, mejor el match que encontramos para ti.</p>
+  </div>
+
+  <div id="form-area">
+    <div class="form-group">
+      <label>Nombre completo</label>
+      <input type="text" id="f-name" placeholder="Ej: María González">
+    </div>
+
+    <div class="form-group">
+      <label>Ciudad donde vives / País de origen</label>
+      <input type="text" id="f-city" placeholder="Ej: Miami · Venezuela">
+    </div>
+
+    <div class="form-group">
+      <label>Nombre de tu negocio</label>
+      <input type="text" id="f-bizname" placeholder="Ej: Marca Contigo Studio">
+    </div>
+
+    <div class="form-group">
+      <label>¿A qué te dedicas?</label>
+      <input type="text" id="f-biz" placeholder="Ej: Consultora de marketing digital">
+    </div>
+
+    <div class="form-group">
+      <label>¿Qué ofreces?</label>
+      <textarea id="f-offers" placeholder="Ej: Estrategia de redes sociales, diseño de marca, mentoría en ventas..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>¿Qué estás buscando?</label>
+      <textarea id="f-seeks" placeholder="Ej: Aliada para proyecto de contenido, clientas para mis talleres, mentora en finanzas..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Tu rol en el ecosistema <span style="font-weight:400;text-transform:none;letter-spacing:0">(puedes elegir varios)</span></label>
+      <div class="role-grid">
+        <div class="role-chip" data-role="proveedora" onclick="toggleRole(this)">
+          <span class="check-mark">✓</span>
+          <span class="role-icon">🛠</span>
+          <span class="role-label">Proveedora</span>
+          <span class="role-desc">Ofrezco servicios</span>
+        </div>
+        <div class="role-chip" data-role="clienta" onclick="toggleRole(this)">
+          <span class="check-mark">✓</span>
+          <span class="role-icon">🎯</span>
+          <span class="role-label">Clienta</span>
+          <span class="role-desc">Busco contratar</span>
+        </div>
+        <div class="role-chip" data-role="aliada" onclick="toggleRole(this)">
+          <span class="check-mark">✓</span>
+          <span class="role-icon">🤝</span>
+          <span class="role-label">Aliada</span>
+          <span class="role-desc">Para colaborar</span>
+        </div>
+        <div class="role-chip" data-role="amplificadora" onclick="toggleRole(this)">
+          <span class="check-mark">✓</span>
+          <span class="role-icon">📣</span>
+          <span class="role-label">Amplificadora</span>
+          <span class="role-desc">Tengo audiencia</span>
+        </div>
+        <div class="role-chip" data-role="mentora" onclick="toggleRole(this)">
+          <span class="check-mark">✓</span>
+          <span class="role-icon">🧭</span>
+          <span class="role-label">Mentora</span>
+          <span class="role-desc">Experiencia que compartir</span>
+        </div>
+        <div class="role-chip" data-role="curiosa" onclick="toggleRole(this)">
+          <span class="check-mark">✓</span>
+          <span class="role-icon">🔎</span>
+          <span class="role-label">Curiosa</span>
+          <span class="role-desc">Explorando posibilidades</span>
+        </div>
+        <div class="role-chip" data-role="patrocinante" onclick="toggleRole(this)">
+          <span class="check-mark">✓</span>
+          <span class="role-icon">🌟</span>
+          <span class="role-label">Patrocinante</span>
+          <span class="role-desc">Apoya a Venprendedoras</span>
+        </div>
+        <div class="role-chip" data-role="organizacion" onclick="toggleRole(this)">
+          <span class="check-mark">✓</span>
+          <span class="role-icon">🏛</span>
+          <span class="role-label">Organización</span>
+          <span class="role-desc">Apoya al emprendimiento</span>
+        </div>
+      </div>
+      <p class="roles-hint">Toca todos los que apliquen a ti 👆</p>
+    </div>
+
+    <div class="form-group">
+      <label>WhatsApp</label>
+      <input type="text" id="f-contact" placeholder="Ej: +1 305 000 0000">
+    </div>
+
+    <div class="form-group">
+      <label>Instagram</label>
+      <input type="text" id="f-instagram" placeholder="Ej: @tumarca">
+    </div>
+
+    <div class="form-group">
+      <label>LinkedIn</label>
+      <input type="text" id="f-linkedin" placeholder="Ej: linkedin.com/in/tunombre">
+    </div>
+
+    <button class="submit-btn" onclick="submitProfile()">
+      Unirme a la red ✦
+    </button>
+  </div>
+
+  <div id="success-area" style="display:none">
+    <div class="success-banner">
+      <div class="success-icon">🎉</div>
+      <h3>¡Ya estás en la red!</h3>
+      <p>Tu perfil es visible para todas las participantes. Ve a Match IA para descubrir con quién conectar.</p>
+    </div>
+    <button class="cta-btn" onclick="showScreen('match')" style="margin-bottom:12px">
+      Encontrar mi match →
+    </button>
+    <button class="cta-btn" onclick="editProfile()" style="background: #eee; color: var(--dark);">
+      Editar mi perfil
+    </button>
+  </div>
+</section>
+
+<!-- ── SCREEN: MATCH ── -->
+<section class="screen" id="screen-match">
+  <div class="match-header">
+    <h2>Match con IA ✨</h2>
+    <p>Cuéntale a la IA qué necesitas y te dirá exactamente con quién hablar en este tren.</p>
+  </div>
+
+  <div class="match-input-area">
+    <label>¿Qué estás buscando hoy?</label>
+    <textarea class="match-textarea" id="match-query" placeholder="Ej: Soy coach de bienestar y busco alguien que me ayude con marketing digital para llegar a más clientas..."></textarea>
+    <button class="match-btn" onclick="findMatch()" id="match-btn">
+      <span id="match-btn-text">Encontrar mi match</span>
+    </button>
+  </div>
+
+  <div id="match-results" class="match-results"></div>
+
+  <div id="match-empty" class="empty-state">
+    <div class="empty-icon">🔍</div>
+    <p>Escribe qué necesitas arriba y la IA analizará los perfiles registrados para encontrar tu mejor conexión.</p>
+    <div class="info-note" style="text-align:left; margin-top:16px">
+      <strong>Basado en:</strong> Teoría de Vínculos Débiles (Granovetter, 1973) · Ecosistema de Negocio (Moore, 1993)
+    </div>
+  </div>
+</section>
+
+<!-- ── SCREEN: DIRECTORY ── -->
+<section class="screen" id="screen-directory">
+  <div class="dir-search">
+    <input type="text" id="search-input" placeholder="🔍 Buscar por nombre o negocio..." oninput="filterDirectory()">
+  </div>
+
+  <div class="filter-chips">
+    <button class="filter-chip active" data-filter="todas" onclick="setFilter(this)">Todas</button>
+    <button class="filter-chip" data-filter="proveedora" onclick="setFilter(this)">🛠 Proveedoras</button>
+    <button class="filter-chip" data-filter="clienta" onclick="setFilter(this)">🎯 Clientas</button>
+    <button class="filter-chip" data-filter="aliada" onclick="setFilter(this)">🤝 Aliadas</button>
+    <button class="filter-chip" data-filter="amplificadora" onclick="setFilter(this)">📣 Amplificadoras</button>
+    <button class="filter-chip" data-filter="mentora" onclick="setFilter(this)">🧭 Mentoras</button>
+    <button class="filter-chip" data-filter="curiosa" onclick="setFilter(this)">🔎 Curiosas</button>
+    <button class="filter-chip" data-filter="patrocinante" onclick="setFilter(this)">🌟 Patrocinantes</button>
+    <button class="filter-chip" data-filter="organizacion" onclick="setFilter(this)">🏛 Organizaciones</button>
+  </div>
+
+  <button class="export-btn" onclick="exportCSV()" id="export-btn" style="display:none">
+    ⬇️ Exportar directorio CSV
+  </button>
+
+  <div id="profile-cards" class="profile-cards">
+    <div class="empty-state">
+      <div class="empty-icon">👋</div>
+      <p>Aún no hay perfiles registrados. <br>¡Sé la primera en unirte a la red!</p>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="app-footer">
+  Herramienta creada por <a href="#">SoyCyberMujer</a> · Para Venprendedoras Connect 2026
+</footer>
+
+<script>
+// ── STATE ──
+let profiles = [];
+let selectedRoles = [];
+let currentFilter = 'todas';
+let userRegistered = false;
+
+const roleColors = {
+  proveedora:    { bg: '#34BBA8', light: 'rgba(52,187,168,0.1)', text: '#1a8a7a' },
+  clienta:       { bg: '#CE92C0', light: 'rgba(206,146,192,0.1)', text: '#9a5a8e' },
+  aliada:        { bg: '#8BC042', light: 'rgba(139,192,66,0.1)', text: '#5a8a1a' },
+  amplificadora: { bg: '#F8AA43', light: 'rgba(248,170,67,0.1)', text: '#b87000' },
+  mentora:       { bg: '#9b59b6', light: 'rgba(155,89,182,0.1)', text: '#6a2a8a' },
+  curiosa:       { bg: '#4ECDC4', light: 'rgba(78,205,196,0.1)', text: '#1a8a85' },
+  patrocinante:  { bg: '#F7B731', light: 'rgba(247,183,49,0.1)', text: '#a07000' },
+  organizacion:  { bg: '#778CA3', light: 'rgba(119,140,163,0.1)', text: '#3a5068' },
+};
+
+const roleEmojis = {
+  proveedora: '🛠', clienta: '🎯', aliada: '🤝',
+  amplificadora: '📣', mentora: '🧭', curiosa: '🔎',
+  patrocinante: '🌟', organizacion: '🏛'
+};
+
+const roleLabels = {
+  proveedora: 'Proveedora', clienta: 'Clienta', aliada: 'Aliada',
+  amplificadora: 'Amplificadora', mentora: 'Mentora', curiosa: 'Curiosa (Peers)',
+  patrocinante: 'Patrocinante', organizacion: 'Otras organizaciones'
+};
+
+// ── Firebase: Save profile ──
+async function loadProfiles() {
+  // Profiles now load via real-time listener set up in the module script
+  // This function kept for compatibility
+  if (!window.profiles) window.profiles = [];
+  profiles = window.profiles;
+  updateDirCount();
+}
+
+async function saveProfiles() {
+  // No longer used — saving happens in submitProfile directly via Firebase
+}
+
+// ── NAVIGATION ──
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  const idx = ['welcome','register','match','directory'].indexOf(id);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+  if (id === 'directory') renderDirectory();
+}
+
+// ── ROLE SELECTION (multi) ──
+function toggleRole(el) {
+  const role = el.dataset.role;
+  if (el.classList.contains('selected')) {
+    el.classList.remove('selected');
+    selectedRoles = selectedRoles.filter(r => r !== role);
+  } else {
+    el.classList.add('selected');
+    selectedRoles.push(role);
+  }
+}
+
+// ── SUBMIT PROFILE ──
+async function submitProfile() {
+  const name = document.getElementById('f-name').value.trim();
+  const city = document.getElementById('f-city').value.trim();
+  const bizname = document.getElementById('f-bizname').value.trim();
+  const biz  = document.getElementById('f-biz').value.trim();
+  const offers = document.getElementById('f-offers').value.trim();
+  const seeks  = document.getElementById('f-seeks').value.trim();
+  const contact = document.getElementById('f-contact').value.trim();
+  const instagram = document.getElementById('f-instagram').value.trim();
+  const linkedin = document.getElementById('f-linkedin').value.trim();
+
+  if (!name || !biz || !offers || !seeks || selectedRoles.length === 0) {
+    alert('Por favor completa todos los campos y selecciona al menos un rol.');
+    return;
+  }
+
+  const profile = {
+    name, city, bizname, biz, offers, seeks, roles: selectedRoles,
+    contact, instagram, linkedin,
+    ts: new Date().toISOString()
+  };
+
+  try {
+    await window.fsAddDoc(window.fsCollection(window.db, 'profiles'), profile);
+  } catch(e) {
+    alert('Error al guardar. Verifica tu conexión e intenta de nuevo.');
+    return;
+  }
+  updateDirCount();
+
+  userRegistered = true;
+  document.getElementById('form-area').style.display = 'none';
+  document.getElementById('success-area').style.display = 'block';
+}
+
+function editProfile() {
+  document.getElementById('form-area').style.display = 'block';
+  document.getElementById('success-area').style.display = 'none';
+  selectedRoles = [];
+  document.querySelectorAll('.role-chip').forEach(c => c.classList.remove('selected'));
+}
+
+// ── DIRECTORY ──
+function updateDirCount() {
+  document.getElementById('dir-count').textContent = profiles.length;
+}
+
+function renderDirectory(filter, search) {
+  filter = filter || currentFilter;
+  search = search || document.getElementById('search-input').value.toLowerCase();
+
+  const exportBtn = document.getElementById('export-btn');
+  if (exportBtn) exportBtn.style.display = profiles.length > 0 ? 'block' : 'none';
+
+  let filtered = profiles.filter(p => {
+    const profileRoles = p.roles || (p.role ? [p.role] : []);
+    const matchFilter = filter === 'todas' || profileRoles.includes(filter);
+    const matchSearch = !search ||
+      p.name.toLowerCase().includes(search) ||
+      p.biz.toLowerCase().includes(search) ||
+      p.offers.toLowerCase().includes(search);
+    return matchFilter && matchSearch;
+  });
+
+  const container = document.getElementById('profile-cards');
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">🔍</div>
+      <p>No hay perfiles que coincidan con tu búsqueda.</p>
+    </div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(p => {
+    const profileRoles = p.roles || (p.role ? [p.role] : []);
+    const primaryRole = profileRoles[0] || 'proveedora';
+    const colors = roleColors[primaryRole] || roleColors.proveedora;
+    const initials = p.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const badgesHtml = profileRoles.map(r => {
+      const c = roleColors[r] || roleColors.proveedora;
+      return `<span class="role-badge" style="background:${c.light}; color:${c.text}">${roleEmojis[r]} ${roleLabels[r]}</span>`;
+    }).join('');
+    return `
+      <div class="profile-card">
+        <div class="profile-avatar" style="background: ${colors.bg}">${initials}</div>
+        <div class="profile-info">
+          <div class="profile-name">${p.name}</div>
+          <div class="profile-biz">${p.bizname ? '<strong>' + p.bizname + '</strong> · ' : ''}${p.biz}${p.city ? ' · ' + p.city : ''}</div>
+          <div class="multi-role-badges">${badgesHtml}</div>
+          <div class="profile-offers"><strong>Ofrece:</strong> ${p.offers}</div>
+          <div class="profile-seeks"><strong>Busca:</strong> ${p.seeks}</div>
+          ${p.contact ? `<div class="profile-contact">📱 ${p.contact}</div>` : ''}
+          ${p.instagram ? `<div class="profile-contact">📸 ${p.instagram}</div>` : ''}
+          ${p.linkedin ? `<div class="profile-contact">💼 ${p.linkedin}</div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function filterDirectory() {
+  renderDirectory(currentFilter);
+}
+
+function setFilter(el) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  currentFilter = el.dataset.filter;
+  renderDirectory();
+}
+
+// ── AI MATCH ──
+async function findMatch() {
+  const query = document.getElementById('match-query').value.trim();
+  if (!query) { alert('Cuéntanos qué estás buscando.'); return; }
+  if (profiles.length === 0) {
+    document.getElementById('match-results').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">👋</div>
+        <p>Aún no hay perfiles en la red. ¡Invita a las participantes a registrarse primero!</p>
+      </div>`;
+    document.getElementById('match-empty').style.display = 'none';
+    return;
+  }
+
+  const btn = document.getElementById('match-btn');
+  const btnText = document.getElementById('match-btn-text');
+  btn.disabled = true;
+  btnText.innerHTML = `<span class="loading-dots"><span></span><span></span><span></span></span>`;
+  document.getElementById('match-empty').style.display = 'none';
+  document.getElementById('match-results').innerHTML = '';
+
+  const profilesSummary = profiles.map((p, i) => {
+    const rolesStr = (p.roles || (p.role ? [p.role] : [])).join(', ');
+    return `${i+1}. Nombre: ${p.name} | Negocio: ${p.bizname || p.biz} | Descripción: ${p.biz} | Roles: ${rolesStr} | Ofrece: ${p.offers} | Busca: ${p.seeks}`;
+  }).join('\n');
+
+  const prompt = `Eres una experta en networking estratégico para emprendedoras latinas.
+
+Una participante del evento de networking "Venprendedoras Connect" (un viaje en tren Miami → West Palm Beach) dice:
+"${query}"
+
+Aquí están los perfiles registrados en la red:
+${profilesSummary}
+
+Basándote en la Teoría de Vínculos Débiles de Granovetter (1973) y el Mapa de Ecosistema de Negocio de Moore (1993), identifica las 2-3 personas más estratégicas con quienes debería conectar esta participante, priorizando complementariedad sobre similitud.
+
+Responde SOLO con un JSON válido, sin texto adicional, sin backticks, con este formato exacto:
+[
+  {
+    "nombre": "nombre de la persona",
+    "negocio": "su negocio",
+    "razon": "explicación en 2 oraciones de por qué conectar, mencionando el principio teórico aplicado",
+    "como_abordarla": "una frase concreta para iniciar la conversación"
+  }
+]`;
+
+  try {
+    const response = await fetch("/.netlify/functions/match", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt })
+    });
+
+    const data = await response.json();
+    const text = data.content.map(b => b.text || '').join('');
+    const clean = text.replace(/```json|```/g, '').trim();
+    const matches = JSON.parse(clean);
+
+    if (!matches.length) throw new Error('Sin resultados');
+
+    const colors = ['#34BBA8', '#CE92C0', '#8BC042'];
+    document.getElementById('match-results').innerHTML = matches.map((m, i) => {
+      const profile = profiles.find(p => p.name === m.nombre);
+      return `
+        <div class="match-result-card" style="border-left-color: ${colors[i] || '#34BBA8'}; animation-delay: ${i*0.1}s">
+          <div class="match-name">✦ ${m.nombre}</div>
+          <div class="match-biz">${m.negocio}</div>
+          <div class="match-reason">💡 ${m.razon}</div>
+          <div class="match-reason" style="background: rgba(248,170,67,0.08)">🗣 <em>${m.como_abordarla}</em></div>
+          ${profile?.contact ? `<div class="match-contact">📱 ${profile.contact}</div>` : ''}
+          ${profile?.instagram ? `<div class="match-contact">📸 ${profile.instagram}</div>` : ''}
+          ${profile?.linkedin ? `<div class="match-contact">💼 ${profile.linkedin}</div>` : ''}
+        </div>`;
+    }).join('');
+
+  } catch(e) {
+    document.getElementById('match-results').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">⚠️</div>
+        <p>No se pudo conectar con la IA. Verifica tu conexión e intenta nuevamente.</p>
+      </div>`;
+  }
+
+  btn.disabled = false;
+  btnText.textContent = 'Buscar de nuevo';
+}
+
+// ── EXPORT CSV ──
+function exportCSV() {
+  if (profiles.length === 0) return;
+
+  const headers = ['Nombre','Ciudad / País','Negocio','Descripción','Roles','Qué ofrece','Qué busca','WhatsApp','Instagram','LinkedIn'];
+  const rows = profiles.map(p => [
+    p.name,
+    p.city || '',
+    p.bizname || '',
+    p.biz || '',
+    (p.roles || (p.role ? [p.role] : [])).join(' | '),
+    p.offers,
+    p.seeks,
+    p.contact || '',
+    p.instagram || '',
+    p.linkedin || ''
+  ].map(v => `"${String(v).replace(/"/g, '""')}"`));
+
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'VenConnect_Directorio_2026.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── INIT ──
+// profiles array is managed by Firebase real-time listener above
+renderDirectory();
+
+</script>
+</body>
+</html>
